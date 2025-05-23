@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:agora/button_component.dart';
 import 'package:agora/receipt_model.dart';
 import 'package:agora/receipt_screen.dart';
@@ -22,6 +23,8 @@ class _PhotoPageState extends State<PhotoPage> {
   Receipt? receiptData;
   final picker = ImagePicker();
   List<String> validationIssues = [];
+  bool _hasCriticalErrors = false;
+  bool _isReceiptTooOld = false;
 
   Future<void> pickImage(bool isGallery) async {
     final pickedFile = await picker.pickImage(
@@ -32,6 +35,8 @@ class _PhotoPageState extends State<PhotoPage> {
         _image = File(pickedFile.path);
         validationIssues =
             []; // Reset validation issues when new image is selected
+        _hasCriticalErrors = false;
+        _isReceiptTooOld = false;
       });
     } else {
       print('No image selected.');
@@ -47,20 +52,72 @@ class _PhotoPageState extends State<PhotoPage> {
   // Enhanced validation methods
   List<String> _validateBasicStructure(Receipt receipt) {
     final errors = <String>[];
+    _hasCriticalErrors = false;
 
-    if (receipt.companyName?.isEmpty ?? true)
+    if (receipt.companyName?.isEmpty ?? true) {
       errors.add("Missing company name");
-    if (receipt.items?.isEmpty ?? true) errors.add("No items listed");
-    if (receipt.totalPrice == null || receipt.totalPrice == 0)
+      _hasCriticalErrors = true;
+    }
+
+    if (receipt.items?.isEmpty ?? true) {
+      errors.add("No items listed");
+      _hasCriticalErrors = true;
+    }
+
+    if (receipt.totalPrice == null || receipt.totalPrice == 0) {
       errors.add("Missing total price");
-    if (receipt.date?.isEmpty ?? true) errors.add("Missing date");
+      _hasCriticalErrors = true;
+    }
+
+    if (receipt.date?.isEmpty ?? true) {
+      errors.add("Missing date");
+      _hasCriticalErrors = true;
+    }
 
     final datePattern = RegExp(r'^\d{2}[./-]\d{2}[./-]\d{4}$');
     if (receipt.date == null || !datePattern.hasMatch(receipt.date!)) {
       errors.add("Invalid date format (expected dd.mm.yyyy)");
+      _hasCriticalErrors = true;
     }
 
     return errors;
+  }
+
+  void _showValidationErrorDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              "Validation Errors",
+              style: TextStyle(color: Colors.red),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children:
+                    validationIssues
+                        .map(
+                          (error) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text("• $error"),
+                          ),
+                        )
+                        .toList(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  "OK",
+                  style: TextStyle(color: ColorConstant.primaryColor),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   void _validateMathCalculations(
@@ -150,13 +207,22 @@ class _PhotoPageState extends State<PhotoPage> {
       );
 
       final now = DateTime.now();
+
       if (parsedDate.isAfter(now)) {
         redFlags.add("Future date detected");
       }
 
       final difference = now.difference(parsedDate).inDays;
-      if (difference > 20) {
-        redFlags.add("Receipt date is older than 20 days");
+      setState(() {
+        _isReceiptTooOld = difference > 20;
+      });
+      if (_isReceiptTooOld) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Receipt date is older than 20 days"),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       redFlags.add("Invalid date format");
@@ -237,17 +303,29 @@ You are an advanced receipt analysis assistant. Analyze this receipt and extract
       final cleanedJson = _extractJsonString(rawOutput);
       final jsonMap = jsonDecode(cleanedJson);
       receiptData = Receipt.fromJson(jsonMap);
-
+      if (_isReceiptTooOld) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Receipt date is older than 20 days'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      log('SSSSSS');
       if (receiptData != null) {
         // Perform all validations
         final basicErrors = _validateBasicStructure(receiptData!);
         final mathErrors = <String>[];
+        final mathWarnings = <String>[];
+        _validateMathCalculations(receiptData!, mathErrors, mathWarnings);
         final fraudIndicators = _detectPotentialFraud(receiptData!);
 
         // Combine all validation results
         validationIssues = [
           ...basicErrors,
-          ...?mathErrors,
+          ...mathErrors,
+          ...mathWarnings,
           ...fraudIndicators,
           ...?receiptData?.validation?.warnings,
           ...?receiptData?.validation?.potentialIssues,
@@ -266,22 +344,32 @@ You are an advanced receipt analysis assistant. Analyze this receipt and extract
           debugPrint('\n✅ Receipt is valid');
         }
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => ReceiptScreen(
-                  receiptDetails: receiptData!,
-                  validationIssues: validationIssues,
-                ),
-          ),
-        );
+        if (_hasCriticalErrors || _isReceiptTooOld) {
+          // Show error dialog for critical errors
+
+          _showValidationErrorDialog(context);
+        } else {
+          // Only navigate if no critical errors
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => ReceiptScreen(
+                    receiptDetails: receiptData!,
+                    validationIssues: validationIssues,
+                  ),
+            ),
+          );
+        }
       }
     } catch (e) {
       updateLoadingReceipt();
       debugPrint('Error processing receipt: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing receipt: ${e.toString()}')),
+        SnackBar(
+          content: Text('Error processing receipt: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -347,20 +435,15 @@ You are an advanced receipt analysis assistant. Analyze this receipt and extract
             children: <Widget>[
               FloatingActionButton(
                 backgroundColor: ColorConstant.primaryColor,
-
-                onPressed: () {
-                  print('Pick Image');
-                  pickImage(true);
-                },
-                child: Icon(Icons.attach_file, color: Colors.white),
+                onPressed: () => pickImage(true),
+                tooltip: 'Pick from gallery',
+                child: Icon(Icons.photo_library, color: Colors.white),
               ),
               FloatingActionButton(
                 backgroundColor: ColorConstant.primaryColor,
-                onPressed: () {
-                  print('Take Picture');
-                  pickImage(false);
-                },
-                child: Icon(Icons.camera, color: Colors.white),
+                onPressed: () => pickImage(false),
+                tooltip: 'Take photo',
+                child: Icon(Icons.camera_alt, color: Colors.white),
               ),
             ],
           ),
@@ -369,7 +452,7 @@ You are an advanced receipt analysis assistant. Analyze this receipt and extract
             padding: const EdgeInsets.symmetric(horizontal: 30.0),
             child: ButtonComponent(
               isLoading: isLoadingReceipt,
-              isDisabled: _image == null,
+              isDisabled: _image == null || _isReceiptTooOld,
               text: "Proceed Receipt",
               onPressed: () async {
                 await imageToText(_image!);

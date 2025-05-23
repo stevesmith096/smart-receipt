@@ -85,12 +85,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              (widget.receiptDetails?.companyName?.isNotEmpty ?? false)
-                  ? buildTextField(
-                    "Company Name",
-                    widget.receiptDetails?.companyName,
-                  )
-                  : SizedBox(),
+              buildTextField(
+                "Company Name",
+                widget.receiptDetails?.companyName,
+              ),
               (widget.receiptDetails?.date != null)
                   ? buildTextField("Date", widget.receiptDetails?.date)
                   : SizedBox(),
