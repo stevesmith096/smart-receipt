@@ -1,19 +1,29 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:typed_data';
 import 'dart:ui';
+import 'package:agora/receipt_model.dart';
+import 'package:agora/utils/color_constant.dart';
+import 'package:http/http.dart' as http;
 
-import 'package:agora/signature_matching.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http_parser/http_parser.dart' as http_parser;
+import 'package:image_picker/image_picker.dart';
 import 'package:signature/signature.dart';
 
 class UserSignatureScreen extends StatefulWidget {
-  const UserSignatureScreen({super.key});
+  final Receipt receiptDetails;
+
+  const UserSignatureScreen({super.key, required this.receiptDetails});
 
   @override
   State<UserSignatureScreen> createState() => _UserSignatureScreenState();
 }
 
 class _UserSignatureScreenState extends State<UserSignatureScreen> {
+  String result = "";
+
   SignatureController controller = SignatureController(
     penStrokeWidth: 2,
     penColor: Colors.black,
@@ -33,6 +43,76 @@ class _UserSignatureScreenState extends State<UserSignatureScreen> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  double? similarityScore;
+
+  final picker = ImagePicker();
+
+  Future<void> compareSignatures(Uint8List data) async {
+    var uri = Uri.parse("http://192.168.43.47:5000/compare");
+
+    final byteData = await rootBundle.load('assets/images/sign.jpg');
+    final Uint8List image1Bytes = byteData.buffer.asUint8List();
+
+    var request =
+        http.MultipartRequest('POST', uri)
+          ..files.add(
+            http.MultipartFile.fromBytes(
+              'signature1',
+              image1Bytes,
+              filename: 'signature1.png',
+              contentType: http_parser.MediaType('image', 'jpg'),
+            ),
+          )
+          ..files.add(
+            http.MultipartFile.fromBytes(
+              'signature2',
+              data,
+              filename: 'signature2.png',
+              contentType: http_parser.MediaType('image', 'png'),
+            ),
+          );
+    debugPrint(request.fields.toString());
+    debugPrint(request.files[0].toString());
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      var responseData = await response.stream.bytesToString();
+      var json = jsonDecode(responseData);
+      setState(() {
+        similarityScore = json['similarity_score'];
+        result = json['result'];
+        log(result);
+        if (result == 'similar') {
+          sendReceiptApi();
+        }
+      });
+    } else {
+      setState(() {
+        result = "Error comparing signatures.";
+      });
+    }
+  }
+
+  Future<void> sendReceiptApi() async {
+    var uri = Uri.parse("http://192.168.43.216:4444/api/v1/receipt");
+    try {
+      var response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+
+        body: jsonEncode(widget.receiptDetails.toJson()),
+      );
+
+      if (response.statusCode == 201) {
+        var json = jsonDecode(response.body);
+        log(json.toString());
+      }
+    } catch (e) {
+      log(e.toString());
+    }
   }
 
   Future<void> exportImage(BuildContext context) async {
@@ -66,15 +146,16 @@ class _UserSignatureScreenState extends State<UserSignatureScreen> {
     final Uint8List? data = byteData?.buffer.asUint8List();
 
     if (data == null || !mounted) return;
+    compareSignatures(data);
 
-    await push(context, SignatureComparePage(data: data));
+    // await push(context, SignatureComparePage(data: data));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.teal,
+        backgroundColor: ColorConstant.primaryColor,
         centerTitle: true,
         title: const Text(
           'Digital Signature',

@@ -5,7 +5,6 @@ import 'screens/photo_page.dart';
 
 void main() {
   Gemini.init(apiKey: 'AIzaSyBWJ0_-ZAKAi2QAYVnD8umem9gFmHYzUKU');
-
   runApp(MyApp());
 }
 
@@ -15,11 +14,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: Colors.blueGrey[800],
         scaffoldBackgroundColor: Colors.white70,
       ),
-      title: 'Receipt Hacker',
+      title: 'Receipt',
       color: Colors.white,
       initialRoute: '/',
       routes: {

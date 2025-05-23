@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:agora/utils/color_constant.dart';
 import 'package:flutter/material.dart';
 
 class ButtonComponent extends StatelessWidget {
@@ -65,7 +66,8 @@ class ButtonComponent extends StatelessWidget {
         style: TextButton.styleFrom(
           side: side,
           padding: padding,
-          backgroundColor: isDisabled ? Colors.grey : buttonColor,
+          backgroundColor:
+              isDisabled ? Colors.grey.shade400 : ColorConstant.primaryColor,
           foregroundColor: textColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius ?? 15),

@@ -40,22 +40,9 @@ class _SignatureComparePageState extends State<SignatureComparePage> {
   }
 
   Future<void> compareSignatures() async {
-    if (image1 == null || image2 == null) return;
+    var uri = Uri.parse("http://192.168.43.47:5000/compare");
 
-    var uri = Uri.parse("http://192.168.100.47:5000/compare");
-
-    // var request =
-    //     http.MultipartRequest('POST', uri)
-    //       ..files.add(
-    //         await http.MultipartFile.fromPath('signature1', image1!.path),
-    //       )
-    //       ..files.add(
-    //         await http.MultipartFile.fromPath('signature2', image2!.path),
-    //       );
-
-    final byteData = await rootBundle.load(
-      'assets/signature1.png',
-    ); // adjust path as needed
+    final byteData = await rootBundle.load('assets/images/sign.jpg');
     final Uint8List image1Bytes = byteData.buffer.asUint8List();
 
     var request =
@@ -65,7 +52,7 @@ class _SignatureComparePageState extends State<SignatureComparePage> {
               'signature1',
               image1Bytes,
               filename: 'signature1.png',
-              contentType: http_parser.MediaType('image', 'png'),
+              contentType: http_parser.MediaType('image', 'jpg'),
             ),
           )
           ..files.add(
@@ -76,6 +63,9 @@ class _SignatureComparePageState extends State<SignatureComparePage> {
               contentType: http_parser.MediaType('image', 'png'),
             ),
           );
+    debugPrint(request.fields.toString());
+    debugPrint(request.files[0].toString());
+
     var response = await request.send();
 
     if (response.statusCode == 200) {
