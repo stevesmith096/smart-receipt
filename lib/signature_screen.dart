@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'package:agora/receipt_model.dart';
+import 'package:agora/screens/photo_page.dart';
 import 'package:agora/utils/color_constant.dart';
 import 'package:http/http.dart' as http;
 
@@ -23,6 +24,7 @@ class UserSignatureScreen extends StatefulWidget {
 
 class _UserSignatureScreenState extends State<UserSignatureScreen> {
   String result = "";
+  bool isLoading = false;
 
   SignatureController controller = SignatureController(
     penStrokeWidth: 2,
@@ -48,8 +50,13 @@ class _UserSignatureScreenState extends State<UserSignatureScreen> {
   double? similarityScore;
 
   final picker = ImagePicker();
+  void updateLoading() {
+    isLoading = !isLoading;
+    setState(() {});
+  }
 
   Future<void> compareSignatures(Uint8List data) async {
+    updateLoading();
     var uri = Uri.parse("http://192.168.43.47:5000/compare");
 
     final byteData = await rootBundle.load('assets/images/sign.jpg');
@@ -92,6 +99,7 @@ class _UserSignatureScreenState extends State<UserSignatureScreen> {
     } else {
       setState(() {
         result = "Error comparing signatures.";
+        updateLoading();
       });
     }
   }
@@ -108,7 +116,17 @@ class _UserSignatureScreenState extends State<UserSignatureScreen> {
 
       if (response.statusCode == 201) {
         var json = jsonDecode(response.body);
-        log(json.toString());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green,
+            content: Text(json['message']),
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PhotoPage()),
+        );
+        updateLoading();
       }
     } catch (e) {
       log(e.toString());
@@ -162,11 +180,28 @@ class _UserSignatureScreenState extends State<UserSignatureScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
-      body: Signature(
-        key: const Key('signature'),
-        controller: controller,
-        height: 300,
-        backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          Signature(
+            key: const Key('signature'),
+            controller: controller,
+            height: 300,
+            backgroundColor: Colors.white,
+          ),
+          Visibility(
+            visible: isLoading,
+            child: Container(
+              height: MediaQuery.of(context).size.height,
+              width: MediaQuery.of(context).size.width,
+              color: Colors.grey.withOpacity(0.6),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: ColorConstant.primaryColor,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: BottomAppBar(
         child: Container(

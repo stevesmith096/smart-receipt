@@ -1,3 +1,4 @@
+import 'package:agora/utils/color_constant.dart';
 import 'package:flutter/material.dart';
 import 'package:splash_screen_view/SplashScreenView.dart';
 import 'photo_page.dart';
@@ -13,19 +14,12 @@ class _SplashScreenState extends State<SplashScreen> {
     return SplashScreenView(
       navigateRoute: PhotoPage(),
       duration: 5000,
-      imageSize: 200,
-      imageSrc: "assets/bill.png",
-      text: "The simple solution to splitting bills",
+      imageSize: 600,
+      imageSrc: "assets/images/SmartReceiptLogo.gif",
+      text: "Smart Receipt",
       textType: TextType.ColorizeAnimationText,
-      textStyle: TextStyle(
-        fontSize: 30.0,
-      ),
-      colors: [
-        Colors.red,
-        Colors.purple,
-        Colors.blue,
-        Colors.green,
-      ],
+      textStyle: TextStyle(fontSize: 30.0),
+      colors: [ColorConstant.primaryColor, Colors.green, Colors.grey],
       backgroundColor: Colors.white,
     );
   }

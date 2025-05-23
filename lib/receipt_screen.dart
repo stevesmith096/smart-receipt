@@ -163,10 +163,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   onChanged: (String? newValue) {
                     setState(() {
                       selectedValue = newValue!;
-                      widget.receiptDetails = widget.receiptDetails?.copyWith(
-                        category: selectedValue,
-                      );
                     });
+                    widget.receiptDetails = widget.receiptDetails?.copyWith(
+                      category: selectedValue,
+                    );
                   },
                   items:
                       items.map<DropdownMenuItem<String>>((String value) {
@@ -177,28 +177,82 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       }).toList(),
                 ),
               ),
+              SizedBox(height: 10),
+
+              ValidationIssuesWidget(validationIssues: widget.validationIssues),
               SizedBox(height: 30),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                child: ButtonComponent(
-                  text: "Submit Receipt",
-                  onPressed: () async {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => UserSignatureScreen(
-                              receiptDetails:
-                                  widget.receiptDetails ?? Receipt(),
-                            ),
-                      ),
-                    );
-                  },
-                ),
+              ButtonComponent(
+                text: "Submit Receipt",
+                onPressed: () async {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => UserSignatureScreen(
+                            receiptDetails: widget.receiptDetails ?? Receipt(),
+                          ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class ValidationIssuesWidget extends StatelessWidget {
+  final List<String> validationIssues;
+
+  const ValidationIssuesWidget({Key? key, required this.validationIssues})
+    : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (validationIssues.isEmpty) {
+      return const SizedBox(); // or Text('No issues found')
+    }
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      color: Colors.grey.shade300,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Notes:',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: validationIssues.length,
+              itemBuilder: (context, index) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('• ', style: TextStyle(color: Colors.black)),
+                    Expanded(
+                      child: Text(
+                        validationIssues[index],
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
